@@ -55,7 +55,7 @@ RUN  ./configure \
     && make -j20 \
     && make install
 
-FROM ubuntu:24.04-slim AS runtime
+FROM ubuntu:24.04 AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
 COPY conf/ /etc/nginx/
 COPY html/ /usr/share/nginx/html/

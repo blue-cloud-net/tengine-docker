@@ -34,7 +34,7 @@ RUN  ./configure \
     && make -j16 \
     && make install
 
-FROM alpine:3.21-slim AS runtime
+FROM alpine:3.21 AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
 COPY conf/ /etc/nginx/
 COPY html/ /usr/share/nginx/html/
