@@ -11,9 +11,9 @@ jobs:
 
     strategy:
       matrix:
+        os: [ubuntu, alpine]
         # args: [slim, normal, all] 
         args: [slim] 
-        os: [ubuntu, alpine]
 
     steps:
       - name: Checkout repository
@@ -43,3 +43,10 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/tengine:${{ matrix.os }}-${{ matrix.args }}-nightly
+
+      # 如果matrix.os是ubuntu，发布nightly的tag
+      - name: Push nightly tag
+        if: matrix.os == 'ubuntu' && matrix.args == 'normal'
+        run: |
+          docker tag ghcr.io/${{ github.repository_owner }}/tengine:${{ matrix.os }}-${{ matrix.args }}-nightly ghcr.io/${{ github.repository_owner }}/tengine:nightly
+          docker push ghcr.io/${{ github.repository_owner }}/tengine:nightly
