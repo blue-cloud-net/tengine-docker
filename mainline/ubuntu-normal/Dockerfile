@@ -1,9 +1,7 @@
-FROM alpine:3.21 AS build
+FROM ubuntu:24.04 AS build
 
-RUN apk update \
-    && apk upgrade \
-    && apk add --no-cache --virtual .build-deps \
-        curl gcc make libc-dev openssl-dev pcre2-dev zlib-dev
+RUN apt update \
+    && apt install -y curl g++ make libpcre3-dev libssl-dev zlib1g-dev
 
 ENV TENGINE_VERSION=3.1.0
 
@@ -29,33 +27,50 @@ RUN  ./configure \
         --user=nginx \
         --group=nginx \
         --with-compat \
-        --with-threads \
+        --with-file-aio \
+        --with-http_addition_module \
         --with-http_auth_request_module \
+        --with-http_dav_module \
+        --with-http_flv_module \
         --with-http_gunzip_module \
         --with-http_gzip_static_module \
+        --with-http_mp4_module \
+        --with-http_random_index_module \
         --with-http_realip_module \
         --with-http_secure_link_module \
         --with-http_slice_module \
         --with-http_ssl_module \
         --with-http_stub_status_module \
+        --with-http_sub_module \
         --with-http_v2_module \
+        --with-mail \
+        --with-mail_ssl_module \
+        --with-stream_realip_module \
+        --with-stream_ssl_module \
+        --with-stream_ssl_preread_module \
+        --with-threads \
     && make -j2 \
     && make install
 
-FROM alpine:3.21 AS runtime
+FROM ubuntu:24.04 AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
+COPY --from=build /usr/local/lib /usr/local/lib
 COPY conf/ /etc/nginx/
 COPY html/ /usr/share/nginx/html/
+COPY --from=build /var/log/nginx /var/log/nginx
 
 # create nginx user/group first, to be consistent throughout docker variants \
-RUN addgroup -g 101 -S nginx \
-    && adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx \
-    && ln -sf /usr/local/nginx/sbin/nginx /usr/bin/nginx \
-    # add runtime package
-    && apk update \
-    && apk upgrade --no-cache \
-    && apk add --no-cache \
-        pcre2 \
+RUN groupadd --system nginx \
+    && useradd --system -d /var/cache/nginx --shell /sbin/nologin -g nginx nginx \
+    # install runtime dependencies
+    && apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y curl dnsutils net-tools iputils-ping \
+        libpcre3 \
+    # clean up
+    && apt-get clean \
+    && apt-get autoclean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     # create cache directories
     && install -d -m 755 /var/cache/nginx \
     # create modules folder
@@ -67,7 +82,7 @@ RUN addgroup -g 101 -S nginx \
     && ln -sf /dev/stderr /var/log/nginx/error.log \
     # create a docker-entrypoint.d directory
     && mkdir /docker-entrypoint.d
-    
+
 COPY entrypoint/docker-entrypoint.sh /
 COPY entrypoint/10-listen-on-ipv6-by-default.sh /docker-entrypoint.d
 COPY entrypoint/15-local-resolvers.envsh /docker-entrypoint.d

@@ -2,9 +2,10 @@
 
 ## 计划
 
-1. [ ] 编译tengine基础镜像
-2. [ ] 编译tengine较为完整模块镜像
-3. [ ] 编译tengine完整模块镜像
+1. [x] 编译tengine压缩镜像
+2. [x] 编译tengine基础镜像
+3. [ ] 编译tengine较为完整模块镜像
+4. [ ] 编译tengine完整模块镜像
 
 ## 问题
 
