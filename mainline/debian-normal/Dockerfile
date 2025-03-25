@@ -65,7 +65,6 @@ RUN groupadd --system nginx \
     && apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y curl dnsutils net-tools iputils-ping \
-        # libssl3 \
         libpcre3 \
     # clean up
     && apt-get clean \
