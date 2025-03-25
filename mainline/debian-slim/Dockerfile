@@ -2,7 +2,7 @@ FROM debian:12 AS build
 
 RUN apt update \
     && apt upgrade -y \
-    && apt install -y curl g++ libgd-dev libgeoip-dev libxslt1-dev libpcre3-dev liblua5.1-0-dev lua5.1 cpanminus libssl-dev libjemalloc-dev
+    && apt install -y curl g++ make libpcre3-dev libssl-dev zlib1g-dev
 
 ENV TENGINE_VERSION=3.1.0
 
@@ -18,8 +18,8 @@ RUN  ./configure \
         --conf-path=/etc/nginx/nginx.conf \
         --error-log-path=/var/log/nginx/error.log \
         --http-log-path=/var/log/nginx/access.log \
-        --pid-path=/run/nginx.pid \
-        --lock-path=/run/lock/nginx.lock \
+        --pid-path=/var/run/nginx.pid \
+        --lock-path=/var/run/lock/nginx.lock \
         --http-client-body-temp-path=/var/cache/nginx/client_temp \
         --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
         --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \

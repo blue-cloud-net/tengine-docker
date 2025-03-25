@@ -1,7 +1,9 @@
 FROM alpine:3.21 AS build
 
-RUN apk add --no-cache --virtual .build-deps \
-        curl gcc libc-dev make openssl-dev pcre2-dev perl zlib-dev linux-headers bash alpine-sdk findutils
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache --virtual .build-deps \
+        curl gcc make libc-dev openssl-dev pcre2-dev zlib-dev linux-headers
 
 ENV TENGINE_VERSION=3.1.0
 
@@ -17,8 +19,8 @@ RUN  ./configure \
         --conf-path=/etc/nginx/nginx.conf \
         --error-log-path=/var/log/nginx/error.log \
         --http-log-path=/var/log/nginx/access.log \
-        --pid-path=/run/nginx.pid \
-        --lock-path=/run/lock/nginx.lock \
+        --pid-path=/var/run/nginx.pid \
+        --lock-path=/var/run/lock/nginx.lock \
         --http-client-body-temp-path=/var/cache/nginx/client_temp \
         --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
         --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
@@ -27,7 +29,6 @@ RUN  ./configure \
         --user=nginx \
         --group=nginx \
         --with-compat \
-        --with-file-aio \
         --with-threads \
         --with-http_auth_request_module \
         --with-http_gunzip_module \
@@ -51,7 +52,8 @@ RUN addgroup -g 101 -S nginx \
     && adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx \
     && ln -sf /usr/local/nginx/sbin/nginx /usr/bin/nginx \
     # add runtime package
-    && sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
+    && apk update \
+    && apk upgrade --no-cache \
     && apk add --no-cache \
         pcre2 \
     # create cache directories
