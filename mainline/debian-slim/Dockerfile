@@ -51,8 +51,8 @@ COPY html/ /usr/share/nginx/html/
 RUN groupadd --system nginx \
     && useradd --system -d /var/cache/nginx --shell /sbin/nologin -g nginx nginx \
     # install runtime dependencies
-    && apt-get -y update \
-    && apt upgrade -y \
+    && apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y \
         libssl3 \
         libpcre3 \
