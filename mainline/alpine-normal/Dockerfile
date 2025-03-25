@@ -3,7 +3,7 @@ FROM alpine:3.21 AS build
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache --virtual .build-deps \
-        curl gcc make libc-dev openssl-dev pcre2-dev zlib-dev
+        curl gcc make openssl-dev pcre2-dev zlib-dev linux-headers alpine-sdk
 
 ENV TENGINE_VERSION=3.1.0
 

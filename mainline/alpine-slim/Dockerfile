@@ -3,7 +3,7 @@ FROM alpine:3.21 AS build
 RUN apk update \
     && apk upgrade \
     && apk add --no-cache --virtual .build-deps \
-        curl gcc make libc-dev openssl-dev pcre2-dev zlib-dev
+        curl gcc make openssl-dev pcre2-dev zlib-dev linux-headers alpine-sdk
 
 ENV TENGINE_VERSION=3.1.0
 
@@ -29,7 +29,7 @@ RUN  ./configure \
         --user=nginx \
         --group=nginx \
         --with-compat \
-        --with-threads \
+        --with-file-aio \
         --with-http_auth_request_module \
         --with-http_gunzip_module \
         --with-http_gzip_static_module \
@@ -39,6 +39,7 @@ RUN  ./configure \
         --with-http_ssl_module \
         --with-http_stub_status_module \
         --with-http_v2_module \
+        --with-threads \
     && make -j2 \
     && make install
 
