@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu, alpine]
+        os: [ubuntu, debian, alpine]
         # args: [slim, normal, all] 
         args: [slim] 
 

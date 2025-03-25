@@ -1,4 +1,4 @@
-FROM ubuntu:24.04 AS build
+FROM debian:12 AS build
 
 RUN apt update \
     && apt upgrade -y \
@@ -42,7 +42,7 @@ RUN  ./configure \
     && make -j2 \
     && make install
 
-FROM ubuntu:24.04 AS runtime
+FROM debian:12-slim AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
 COPY conf/ /etc/nginx/
 COPY html/ /usr/share/nginx/html/
@@ -54,6 +54,7 @@ RUN groupadd --system nginx \
     && apt-get -y update \
     && apt upgrade -y \
     && apt-get install -y \
+        libssl3 \
         libpcre3 \
     # clean up
     && apt-get clean \

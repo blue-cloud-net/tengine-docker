@@ -1,7 +1,6 @@
 FROM alpine:3.21 AS build
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
-        && apk add --no-cache --virtual .build-deps \
+RUN apk add --no-cache --virtual .build-deps \
         curl gcc libc-dev make openssl-dev pcre2-dev perl zlib-dev linux-headers bash alpine-sdk findutils
 
 ENV TENGINE_VERSION=3.1.0
@@ -18,8 +17,8 @@ RUN  ./configure \
         --conf-path=/etc/nginx/nginx.conf \
         --error-log-path=/var/log/nginx/error.log \
         --http-log-path=/var/log/nginx/access.log \
-        --pid-path=/var/run/nginx.pid \
-        --lock-path=/var/lock/nginx.lock \
+        --pid-path=/run/nginx.pid \
+        --lock-path=/run/lock/nginx.lock \
         --http-client-body-temp-path=/var/cache/nginx/client_temp \
         --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
         --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
@@ -27,18 +26,25 @@ RUN  ./configure \
         --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
         --user=nginx \
         --group=nginx \
+        --with-compat \
+        --with-file-aio \
+        --with-threads \
+        --with-http_auth_request_module \
+        --with-http_gunzip_module \
+        --with-http_gzip_static_module \
+        --with-http_realip_module \
+        --with-http_secure_link_module \
+        --with-http_slice_module \
         --with-http_ssl_module \
-        --with-stream \
-        --with-stream_ssl_module \
-        --with-stream_sni \
-    && make -j16 \
+        --with-http_stub_status_module \
+        --with-http_v2_module \
+    && make -j2 \
     && make install
 
 FROM alpine:3.21 AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
 COPY conf/ /etc/nginx/
 COPY html/ /usr/share/nginx/html/
-COPY --from=build /var/log/nginx /var/log/nginx
 
 # create nginx user/group first, to be consistent throughout docker variants \
 RUN addgroup -g 101 -S nginx \
@@ -48,13 +54,13 @@ RUN addgroup -g 101 -S nginx \
     && sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories \
     && apk add --no-cache \
         pcre2 \
-    # mkdir cache
-    && mkdir -p /var/cache/nginx \
+    # create cache directories
+    && install -d -m 755 /var/cache/nginx \
+    # create modules folder
+    && install -d -m 755 /usr/lib/nginx/modules \
+    && ln -sf /usr/lib/nginx/modules /etc/nginx/modules \
     # forward request and error logs to docker log collector
-    && mkdir -p /var/log/nginx \
-    && touch /var/log/nginx/access.log \
-    && touch /var/log/nginx/error.log \
-    # forward request and error logs to docker log collector
+    && install -d -m 755 /var/log/nginx \
     && ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log \
     # create a docker-entrypoint.d directory
