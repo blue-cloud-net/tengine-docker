@@ -36,7 +36,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./tengine/${{ matrix.os }}-${{ matrix.args }}/Dockerfile
+          file: ./mainline/${{ matrix.os }}-${{ matrix.args }}/Dockerfile
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
