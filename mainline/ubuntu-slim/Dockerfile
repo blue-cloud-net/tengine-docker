@@ -7,7 +7,7 @@ RUN apt update \
 ENV TENGINE_VERSION=3.1.0
 
 WORKDIR /workdir
-RUN curl -Lj https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VERSION}.tar.gz -o tengine.tar.gz \
+RUN curl -Lj -x socks5://192.168.199.199:7890 https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VERSION}.tar.gz -o tengine.tar.gz \
     && tar -zxvf tengine.tar.gz
 
 WORKDIR /workdir/tengine-${TENGINE_VERSION}
@@ -52,14 +52,13 @@ RUN  ./configure \
         --with-stream_ssl_module \
         --with-stream_ssl_preread_module \
         --with-stream_sni \
-    && make -j20 \
+    && make -j50 \
     && make install
 
 FROM ubuntu:24.04 AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
 COPY conf/ /etc/nginx/
 COPY html/ /usr/share/nginx/html/
-COPY --from=build /var/log/nginx /var/log/nginx
 
 # create nginx user/group first, to be consistent throughout docker variants \
 RUN groupadd --system nginx \
@@ -74,9 +73,12 @@ RUN groupadd --system nginx \
     && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     # create cache directories
-    && mkdir -p /var/cache/nginx \
-    && chown -R nginx:nginx /var/cache/nginx \
+    && install -m 755 /var/cache/nginx \
+    # create modules folder
+    && install -m 755 /usr/lib/nginx/modules \
+    && ln -sf /etc/nginx/modules /usr/lib/nginx/modules \
     # forward request and error logs to docker log collector
+    && install -m 755 /var/log/nginx \
     && ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log \
     # create a docker-entrypoint.d directory
