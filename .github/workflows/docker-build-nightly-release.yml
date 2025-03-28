@@ -32,7 +32,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
-        if: !(matrix.os == 'ubuntu' && matrix.args == 'normal')
+        if: matrix.os != 'ubuntu' || matrix.args != 'normal')
         uses: docker/build-push-action@v6
         with:
           context: .
