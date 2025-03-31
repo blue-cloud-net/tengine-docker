@@ -4,7 +4,7 @@ RUN apt update \
     && apt upgrade -y \
     && apt install -y curl g++ make libpcre3-dev libssl-dev zlib1g-dev \
                             libgeoip-dev libjemalloc-dev \
-                            autoconf automake libtool libpcre2-dev
+                            autoconf automake libtool libpcre2-dev libgeoip-dev
 
 ENV TENGINE_VERSION=3.1.0
 ENV TONGSUO_VERSION=8.4.0
