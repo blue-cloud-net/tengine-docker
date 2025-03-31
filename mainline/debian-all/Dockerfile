@@ -37,22 +37,32 @@ RUN curl -Ljf https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VER
     && tar -zxvf modsecurity-nginx.tar.gz \
     && tar -zxvf coreruleset.tar.gz \
     && tar -zxvf libinjection.tar.gz -C ModSecurity-${MODSECURITY_VERSION}/others/ \
-    && tar -zxvf mbedtls.tar.gz -C ModSecurity-${MODSECURITY_VERSION}/others/ \
-    && rm -rf ModSecurity-${MODSECURITY_VERSION}/others/libinjection ModSecurity-${MODSECURITY_VERSION}/others/mbedtls \
-    && mv ModSecurity-${MODSECURITY_VERSION}/others/libinjection-${LIBINJECTION_VERSION} ModSecurity-${MODSECURITY_VERSION}/others/libinjection \
-    && mv ModSecurity-${MODSECURITY_VERSION}/others/mbedtls-mbedtls-${MBED_TLS_VERSION} ModSecurity-${MODSECURITY_VERSION}/others/mbedtls
+    && tar -zxvf mbedtls.tar.gz -C ModSecurity-${MODSECURITY_VERSION}/others/
+
+# 移除文件夹版本号
+RUN mv tengine-${TENGINE_VERSION} tengine \
+    && mv Tongsuo-${TONGSUO_VERSION} tongsuo \
+    && mv luajit2-${LUAJIT_VERSION} luajit2 \
+    && mv lua-resty-core-${LUA_RESTY_CORE_VERSION} lua-resty-core \
+    && mv lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION} lua-resty-lrucache \
+    && mv ModSecurity-${MODSECURITY_VERSION} modsecurity \
+    && mv ModSecurity-nginx-${MODSECURITY_NGINX_VERSION} modsecurity-nginx \
+    && mv coreruleset-${CORERULESET_VERSION} coreruleset \
+    && rm -rf modsecurity/others/libinjection modsecurity/others/mbedtls \
+    && mv modsecurity/others/libinjection-${LIBINJECTION_VERSION} modsecurity/others/libinjection \
+    && mv modsecurity/others/mbedtls-mbedtls-${MBED_TLS_VERSION} modsecurity/others/mbedtls
 
 # 编译lua模块
-WORKDIR /workdir/luajit2-${LUAJIT_VERSION}
+WORKDIR /workdir/luajit2
 RUN make -j2 \
     && make install
-WORKDIR /workdir/lua-resty-core-${LUA_RESTY_CORE_VERSION}
+WORKDIR /workdir/lua-resty-core
 RUN make install
-WORKDIR /workdir/lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION}
+WORKDIR /workdir/lua-resty-lrucache
 RUN make install
 
 # 编译ModSecurity
-WORKDIR /workdir/ModSecurity-${MODSECURITY_VERSION}
+WORKDIR /workdir/modsecurity
 RUN ./build.sh \
     && ./configure \
         --disable-doxygen-doc \
@@ -66,10 +76,10 @@ RUN ./build.sh \
 # 设置编译环境变量
 ENV LUAJIT_LIB=/usr/local/lib
 ENV LUAJIT_INC=/usr/local/include/luajit-2.1
-ENV MODSECURITY_INC=/workdir/ModSecurity-${MODSECURITY_VERSION}/headers/
-ENV MODSECURITY_LIB=/workdir/ModSecurity-${MODSECURITY_VERSION}/src/.libs/
+ENV MODSECURITY_INC=/workdir/modsecurity/headers/
+ENV MODSECURITY_LIB=/workdir/modsecurity/src/.libs/
 
-WORKDIR /workdir/tengine-${TENGINE_VERSION}
+WORKDIR /workdir/tengine
 RUN  ./configure \
         --with-ld-opt="-Wl,-lpcre,-rpath,/usr/local/lib" \
         --prefix=/etc/nginx \
@@ -133,24 +143,23 @@ RUN  ./configure \
         --add-module=./modules/ngx_http_upstream_vnswrr_module \
         --add-module=./modules/ngx_slab_stat \
         # 添加ModSecurity模块
-        --add-module=../ModSecurity-nginx-${MODSECURITY_NGINX_VERSION} \
+        --add-module=../modsecurity-nginx \
         # 添加Tongsuo模块，并启用NTLS
         --add-module=./modules/ngx_tongsuo_ntls \
-        --with-openssl=../Tongsuo-${TONGSUO_VERSION} \
+        --with-openssl=../tongsuo \
         --with-openssl-opt="--strict-warnings enable-ntls" \
     && make -j2 \
     && make install
 
 FROM debian:12 AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
-COPY --from=build /usr/local/lib/lua /usr/local/lib/lua
-COPY --from=build /usr/local/modsecurity /usr/local/modsecurity
+COPY --from=build /usr/local/lib/lua/ /usr/local/lib/lua/
+COPY --from=build /usr/local/modsecurity/ /usr/local/modsecurity/
 COPY conf/ /etc/nginx/
-COPY modsecurity/modsecurity.conf /etc/nginx/conf.d/modsecurity.conf
-COPY --from=build /workdir/ModSecurity-${MODSECURITY_NGINX_VERSION}/unicode.mapping /etc/nginx/modsecurity/unicode.mapping
-COPY --from=build /workdir/ModSecurity-${MODSECURITY_NGINX_VERSION}/modsecurity.conf-recommended /etc/nginx/modsecurity/modsecurity.conf
-COPY --from=build /workdir/coreruleset-${CORERULESET_VERSION}/rules /etc/nginx/modsecurity/
-COPY --from=build /workdir/coreruleset-${CORERULESET_VERSION}/crs-setup.conf.example /etc/nginx/modsecurity/
+COPY --from=build /workdir/modsecurity/unicode.mapping /etc/nginx/modsecurity/unicode.mapping
+COPY --from=build /workdir/modsecurity/modsecurity.conf-recommended /etc/nginx/modsecurity/modsecurity.conf
+COPY --from=build /workdir/coreruleset/rules/ /etc/nginx/modsecurity/owasp-crs/rules/
+COPY --from=build /workdir/coreruleset/crs-setup.conf.example /etc/nginx/modsecurity/owasp-crs/crs-setup.conf
 COPY html/ /usr/share/nginx/html/
 
 # create nginx user/group first, to be consistent throughout docker variants \
@@ -175,13 +184,13 @@ RUN groupadd --system nginx \
     && echo "/usr/local/modsecurity/lib" > /etc/ld.so.conf.d/modsecurity.conf \
     && ldconfig \
     # set modsecurity
-    && echo "modsecurity on;" > /etc/nginx/cond.d/modsecurity.conf \
-    && echo "modsecurity_rules_file /etc/nginx/modsecurity/modsecurity.conf;" >> /etc/nginx/cond.d/modsecurity.conf \
+    && echo "modsecurity on;" > /etc/nginx/conf.d/modsecurity.conf \
+    && echo "modsecurity_rules_file /etc/nginx/modsecurity/modsecurity.conf;" >> /etc/nginx/conf.d/modsecurity.conf \
     && sed -i 's|SecAuditLogType Serial|SecAuditLogType Concurrent|g' /etc/nginx/modsecurity/modsecurity.conf \
     && echo "\n\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
     && echo "SecAuditLogStorageDir /var/log/audit/\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
-    && echo "Include /etc/modsecurity.d/owasp-crs/crs-setup.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
-    && echo "Include /etc/modsecurity.d/owasp-crs/rules/*.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo "Include /etc/nginx/modsecurity/owasp-crs/crs-setup.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo "Include /etc/nginx/modsecurity/owasp-crs/rules/*.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
     # create cache directories
     && install -d -m 755 /var/cache/nginx \
     # create modules folder

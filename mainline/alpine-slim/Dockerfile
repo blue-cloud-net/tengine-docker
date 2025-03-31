@@ -11,7 +11,10 @@ WORKDIR /workdir
 RUN curl -Lj https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VERSION}.tar.gz -o tengine.tar.gz \
     && tar -zxvf tengine.tar.gz
 
-WORKDIR /workdir/tengine-${TENGINE_VERSION}
+# 移除文件夹版本号
+RUN mv tengine-${TENGINE_VERSION} tengine
+
+WORKDIR /workdir/tengine
 RUN  ./configure \
         --prefix=/etc/nginx \
         --sbin-path=/usr/sbin/nginx \

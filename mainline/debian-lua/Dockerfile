@@ -20,19 +20,25 @@ RUN curl -Lj https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VERS
     && tar -zxvf lua-resty-core.tar.gz \
     && tar -zxvf lua-resty-lrucache.tar.gz
 
+# 移除文件夹版本号
+RUN mv tengine-${TENGINE_VERSION} tengine \
+    && mv luajit2-${LUAJIT_VERSION} luajit2 \
+    && mv lua-resty-core-${LUA_RESTY_CORE_VERSION} lua-resty-core \
+    && mv lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION} lua-resty-lrucache
+
 # 编译lua模块
-WORKDIR /workdir/luajit2-${LUAJIT_VERSION}
+WORKDIR /workdir/luajit2
 RUN make -j2 \
     && make install
-WORKDIR /workdir/lua-resty-core-${LUA_RESTY_CORE_VERSION}
+WORKDIR /workdir/lua-resty-core
 RUN make install
-WORKDIR /workdir/lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION}
+WORKDIR /workdir/lua-resty-lrucache
 RUN make install
 
 ENV LUAJIT_LIB=/usr/local/lib
 ENV LUAJIT_INC=/usr/local/include/luajit-2.1
 
-WORKDIR /workdir/tengine-${TENGINE_VERSION}
+WORKDIR /workdir/tengine
 RUN  ./configure \
         --with-ld-opt="-Wl,-lpcre,-rpath,/usr/local/lib" \
         --prefix=/etc/nginx \
