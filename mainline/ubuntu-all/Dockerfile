@@ -1,30 +1,56 @@
-FROM debian:12 AS build
+FROM ubuntu:24.04 AS build
 
 RUN apt update \
     && apt upgrade -y \
     && apt install -y curl g++ make libpcre3-dev libssl-dev zlib1g-dev \
-                            libgeoip-dev libjemalloc-dev
+                            libgeoip-dev libjemalloc-dev \
+                            autoconf automake libtool libpcre2-dev
 
 ENV TENGINE_VERSION=3.1.0
+ENV TONGSUO_VERSION=8.4.0
 ENV LUAJIT_VERSION=2.1-20250117
 ENV LUA_RESTY_CORE_VERSION=0.1.27
 ENV LUA_RESTY_LRUCACHE_VERSION=0.15
+ENV MODSECURITY_VERSION=3.0.14
+ENV MODSECURITY_NGINX_VERSION=1.0.3
+ENV CORERULESET_VERSION=4.12.0
+ENV LIBINJECTION_VERSION=3.10.0
+ENV MBED_TLS_VERSION=3.6.3
 
 WORKDIR /workdir
-RUN curl -Lj https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VERSION}.tar.gz -o tengine.tar.gz \
-    && curl -Lj https://github.com/openresty/luajit2/archive/refs/tags/v${LUAJIT_VERSION}.tar.gz -o luajit2.tar.gz  \
-    && curl -Lj https://github.com/openresty/lua-resty-core/archive/refs/tags/v${LUA_RESTY_CORE_VERSION}.tar.gz -o lua-resty-core.tar.gz  \
-    && curl -Lj https://github.com/openresty/lua-resty-lrucache/archive/refs/tags/v${LUA_RESTY_LRUCACHE_VERSION}.tar.gz -o lua-resty-lrucache.tar.gz \
+RUN curl -Ljf https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VERSION}.tar.gz -o tengine.tar.gz \
+    && curl -Ljf https://github.com/Tongsuo-Project/Tongsuo/archive/refs/tags/${TONGSUO_VERSION}.tar.gz -o tongsuo.tar.gz  \
+    && curl -Ljf https://github.com/openresty/luajit2/archive/refs/tags/v${LUAJIT_VERSION}.tar.gz -o luajit2.tar.gz  \
+    && curl -Ljf https://github.com/openresty/lua-resty-core/archive/refs/tags/v${LUA_RESTY_CORE_VERSION}.tar.gz -o lua-resty-core.tar.gz  \
+    && curl -Ljf https://github.com/openresty/lua-resty-lrucache/archive/refs/tags/v${LUA_RESTY_LRUCACHE_VERSION}.tar.gz -o lua-resty-lrucache.tar.gz \
+    && curl -Ljf https://github.com/owasp-modsecurity/ModSecurity/archive/refs/tags/v${MODSECURITY_VERSION}.tar.gz -o modsecurity.tar.gz \
+    && curl -Ljf https://github.com/owasp-modsecurity/ModSecurity-nginx/archive/refs/tags/v${MODSECURITY_NGINX_VERSION}.tar.gz -o modsecurity-nginx.tar.gz \
+    && curl -Ljf https://github.com/coreruleset/coreruleset/releases/download/v${CORERULESET_VERSION}/coreruleset-${CORERULESET_VERSION}-minimal.tar.gz -o coreruleset.tar.gz \
+    && curl -Ljf https://github.com/libinjection/libinjection/archive/refs/tags/v${LIBINJECTION_VERSION}.tar.gz -o libinjection.tar.gz \
+    && curl -Ljf https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/mbedtls-${MBED_TLS_VERSION}.tar.gz -o mbedtls.tar.gz \
     && tar -zxvf tengine.tar.gz \
+    && tar -zxvf tongsuo.tar.gz \
     && tar -zxvf luajit2.tar.gz \
     && tar -zxvf lua-resty-core.tar.gz \
-    && tar -zxvf lua-resty-lrucache.tar.gz
+    && tar -zxvf lua-resty-lrucache.tar.gz \
+    && tar -zxvf modsecurity.tar.gz \
+    && tar -zxvf modsecurity-nginx.tar.gz \
+    && tar -zxvf coreruleset.tar.gz \
+    && tar -zxvf libinjection.tar.gz -C ModSecurity-${MODSECURITY_VERSION}/others/ \
+    && tar -zxvf mbedtls.tar.gz -C ModSecurity-${MODSECURITY_VERSION}/others/
 
 # 移除文件夹版本号
 RUN mv tengine-${TENGINE_VERSION} tengine \
+    && mv Tongsuo-${TONGSUO_VERSION} tongsuo \
     && mv luajit2-${LUAJIT_VERSION} luajit2 \
     && mv lua-resty-core-${LUA_RESTY_CORE_VERSION} lua-resty-core \
-    && mv lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION} lua-resty-lrucache
+    && mv lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION} lua-resty-lrucache \
+    && mv ModSecurity-${MODSECURITY_VERSION} modsecurity \
+    && mv ModSecurity-nginx-${MODSECURITY_NGINX_VERSION} modsecurity-nginx \
+    && mv coreruleset-${CORERULESET_VERSION} coreruleset \
+    && rm -rf modsecurity/others/libinjection modsecurity/others/mbedtls \
+    && mv modsecurity/others/libinjection-${LIBINJECTION_VERSION} modsecurity/others/libinjection \
+    && mv modsecurity/others/mbedtls-mbedtls-${MBED_TLS_VERSION} modsecurity/others/mbedtls
 
 # 编译lua模块
 WORKDIR /workdir/luajit2
@@ -35,8 +61,23 @@ RUN make install
 WORKDIR /workdir/lua-resty-lrucache
 RUN make install
 
+# 编译ModSecurity
+WORKDIR /workdir/modsecurity
+RUN ./build.sh \
+    && ./configure \
+        --disable-doxygen-doc \
+        --disable-doxygen-html \
+        --disable-examples \
+        --with-geoip \
+        --with-pcre2 \
+    && make -j2 \
+    && make install
+
+# 设置编译环境变量
 ENV LUAJIT_LIB=/usr/local/lib
 ENV LUAJIT_INC=/usr/local/include/luajit-2.1
+ENV MODSECURITY_INC=/workdir/modsecurity/headers/
+ENV MODSECURITY_LIB=/workdir/modsecurity/src/.libs/
 
 WORKDIR /workdir/tengine
 RUN  ./configure \
@@ -101,13 +142,24 @@ RUN  ./configure \
         --add-module=./modules/ngx_http_upstream_session_sticky_module \
         --add-module=./modules/ngx_http_upstream_vnswrr_module \
         --add-module=./modules/ngx_slab_stat \
+        # 添加ModSecurity模块
+        --add-module=../modsecurity-nginx \
+        # 添加Tongsuo模块，并启用NTLS
+        --add-module=./modules/ngx_tongsuo_ntls \
+        --with-openssl=../tongsuo \
+        --with-openssl-opt="--strict-warnings enable-ntls" \
     && make -j2 \
     && make install
 
-FROM debian:12 AS runtime
+FROM ubuntu:24.04 AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
 COPY --from=build /usr/local/lib/lua/ /usr/local/lib/lua/
+COPY --from=build /usr/local/modsecurity/ /usr/local/modsecurity/
 COPY conf/ /etc/nginx/
+COPY --from=build /workdir/modsecurity/unicode.mapping /etc/nginx/modsecurity/unicode.mapping
+COPY --from=build /workdir/modsecurity/modsecurity.conf-recommended /etc/nginx/modsecurity/modsecurity.conf
+COPY --from=build /workdir/coreruleset/rules/ /etc/nginx/modsecurity/owasp-crs/rules/
+COPY --from=build /workdir/coreruleset/crs-setup.conf.example /etc/nginx/modsecurity/owasp-crs/crs-setup.conf
 COPY html/ /usr/share/nginx/html/
 
 # create nginx user/group first, to be consistent throughout docker variants \
@@ -128,6 +180,17 @@ RUN groupadd --system nginx \
     && install -d -m 755 /usr/local/share/lua/5.1 \
     && ln -sf /usr/local/lib/lua/ngx /usr/local/share/lua/5.1 \
     && ln -sf /usr/local/lib/lua/resty /usr/local/share/lua/5.1 \
+    # add modsecurity libraries
+    && echo "/usr/local/modsecurity/lib" > /etc/ld.so.conf.d/modsecurity.conf \
+    && ldconfig \
+    # set modsecurity
+    && echo "modsecurity on;" > /etc/nginx/conf.d/modsecurity.conf \
+    && echo "modsecurity_rules_file /etc/nginx/modsecurity/modsecurity.conf;" >> /etc/nginx/conf.d/modsecurity.conf \
+    && sed -i 's|SecAuditLogType Serial|SecAuditLogType Concurrent|g' /etc/nginx/modsecurity/modsecurity.conf \
+    && echo "\n\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo "SecAuditLogStorageDir /var/log/audit/\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo "Include /etc/nginx/modsecurity/owasp-crs/crs-setup.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo "Include /etc/nginx/modsecurity/owasp-crs/rules/*.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
     # create cache directories
     && install -d -m 755 /var/cache/nginx \
     # create modules folder

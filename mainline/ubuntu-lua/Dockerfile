@@ -1,4 +1,4 @@
-FROM debian:12 AS build
+FROM ubuntu:24.04 AS build
 
 RUN apt update \
     && apt upgrade -y \
@@ -104,7 +104,7 @@ RUN  ./configure \
     && make -j2 \
     && make install
 
-FROM debian:12 AS runtime
+FROM ubuntu:24.04 AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
 COPY --from=build /usr/local/lib/lua/ /usr/local/lib/lua/
 COPY conf/ /etc/nginx/
@@ -120,6 +120,7 @@ RUN groupadd --system nginx \
         libpcre3 \
         libluajit2-5.1-2 \
         libgeoip1 \
+        libjemalloc2 \
     # clean up
     && apt-get clean \
     && apt-get autoclean \

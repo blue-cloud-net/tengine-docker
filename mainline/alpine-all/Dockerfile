@@ -1,10 +1,11 @@
-FROM debian:12 AS build
+FROM alpine:3.21 AS build
 
-RUN apt update \
-    && apt upgrade -y \
-    && apt install -y curl g++ make libpcre3-dev libssl-dev zlib1g-dev \
-                            libgeoip-dev libjemalloc-dev \
-                            autoconf automake libtool
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache --virtual .build-deps \
+        curl g++ make openssl-dev pcre-dev pcre2-dev zlib-dev linux-headers alpine-sdk \
+        geoip-dev jemalloc-dev \
+        autoconf automake libtool
 
 ENV TENGINE_VERSION=3.1.0
 ENV TONGSUO_VERSION=8.4.0
@@ -79,6 +80,11 @@ ENV LUAJIT_INC=/usr/local/include/luajit-2.1
 ENV MODSECURITY_INC=/workdir/modsecurity/headers/
 ENV MODSECURITY_LIB=/workdir/modsecurity/src/.libs/
 
+RUN ls /usr/local/lib/
+RUN ls /workdir/modsecurity
+RUN ls /workdir/modsecurity/headers/
+RUN ls /workdir/modsecurity/src/.libs/
+
 WORKDIR /workdir/tengine
 RUN  ./configure \
         --with-ld-opt="-Wl,-lpcre,-rpath,/usr/local/lib" \
@@ -151,7 +157,7 @@ RUN  ./configure \
     && make -j2 \
     && make install
 
-FROM debian:12 AS runtime
+FROM alpine:3.21 AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
 COPY --from=build /usr/local/lib/lua/ /usr/local/lib/lua/
 COPY --from=build /usr/local/modsecurity/ /usr/local/modsecurity/
@@ -163,19 +169,17 @@ COPY --from=build /workdir/coreruleset/crs-setup.conf.example /etc/nginx/modsecu
 COPY html/ /usr/share/nginx/html/
 
 # create nginx user/group first, to be consistent throughout docker variants \
-RUN groupadd --system nginx \
-    && useradd --system -d /var/cache/nginx --shell /sbin/nologin -g nginx nginx \
-    # install runtime dependencies
-    && apt-get update \
-    && apt-get upgrade -y \
-    && apt-get install -y curl dnsutils net-tools iputils-ping \
-        libpcre3 \
-        libluajit2-5.1-2 \
-        libgeoip1 \
-    # clean up
-    && apt-get clean \
-    && apt-get autoclean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+RUN addgroup -g 101 -S nginx \
+    && adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx \
+    && ln -sf /usr/local/nginx/sbin/nginx /usr/bin/nginx \
+    # add runtime package
+    && apk update \
+    && apk upgrade --no-cache \
+    && apk add --no-cache \
+        pcre \
+        geoip \
+        luajit \
+        jemalloc \
     # link lua libraries
     && install -d -m 755 /usr/local/share/lua/5.1 \
     && ln -sf /usr/local/lib/lua/ngx /usr/local/share/lua/5.1 \
@@ -202,7 +206,7 @@ RUN groupadd --system nginx \
     && ln -sf /dev/stderr /var/log/nginx/error.log \
     # create a docker-entrypoint.d directory
     && mkdir /docker-entrypoint.d
-
+    
 COPY entrypoint/docker-entrypoint.sh /
 COPY entrypoint/10-listen-on-ipv6-by-default.sh /docker-entrypoint.d
 COPY entrypoint/15-local-resolvers.envsh /docker-entrypoint.d
