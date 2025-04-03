@@ -1,4 +1,4 @@
-FROM alpine:3.21 AS build
+FROM alpine:3.20 AS build
 
 RUN apk update \
     && apk upgrade \
@@ -80,10 +80,8 @@ ENV LUAJIT_INC=/usr/local/include/luajit-2.1
 ENV MODSECURITY_INC=/workdir/modsecurity/headers/
 ENV MODSECURITY_LIB=/workdir/modsecurity/src/.libs/
 
-RUN ls /usr/local/lib/
-RUN ls /workdir/modsecurity
-RUN ls /workdir/modsecurity/headers/
-RUN ls /workdir/modsecurity/src/.libs/
+# fix tongsuo build warning (https://github.com/Tongsuo-Project/Tongsuo/commit/3b84722dcd68e4f008534a15cb1c9e38835237cf)
+RUN sed -i '/while (out_len > 0)/,/\}/c\    memset(out, 0, out_len * sizeof(BN_ULONG));' /workdir/tongsuo/crypto/bn/rsaz_exp_x2.c
 
 WORKDIR /workdir/tengine
 RUN  ./configure \
@@ -184,9 +182,8 @@ RUN addgroup -g 101 -S nginx \
     && install -d -m 755 /usr/local/share/lua/5.1 \
     && ln -sf /usr/local/lib/lua/ngx /usr/local/share/lua/5.1 \
     && ln -sf /usr/local/lib/lua/resty /usr/local/share/lua/5.1 \
-    # add modsecurity libraries
-    && echo "/usr/local/modsecurity/lib" > /etc/ld.so.conf.d/modsecurity.conf \
-    && ldconfig \
+    # link modsecurity libraries
+    && ln -sf /usr/local/modsecurity/lib/libmodsecurity.so.3 /lib/libmodsecurity.so.3 \
     # set modsecurity
     && echo "modsecurity on;" > /etc/nginx/conf.d/modsecurity.conf \
     && echo "modsecurity_rules_file /etc/nginx/modsecurity/modsecurity.conf;" >> /etc/nginx/conf.d/modsecurity.conf \

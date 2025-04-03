@@ -4,7 +4,7 @@ RUN apt update \
     && apt upgrade -y \
     && apt install -y curl g++ make libpcre3-dev libssl-dev zlib1g-dev \
                             libgeoip-dev libjemalloc-dev \
-                            autoconf automake libtool
+                            autoconf automake libtool libpcre2-dev
 
 ENV TENGINE_VERSION=3.1.0
 ENV TONGSUO_VERSION=8.4.0
@@ -78,6 +78,9 @@ ENV LUAJIT_LIB=/usr/local/lib
 ENV LUAJIT_INC=/usr/local/include/luajit-2.1
 ENV MODSECURITY_INC=/workdir/modsecurity/headers/
 ENV MODSECURITY_LIB=/workdir/modsecurity/src/.libs/
+
+# fix tongsuo build warning (https://github.com/Tongsuo-Project/Tongsuo/commit/3b84722dcd68e4f008534a15cb1c9e38835237cf)
+RUN sed -i '/while (out_len > 0)/,/\}/c\    memset(out, 0, out_len * sizeof(BN_ULONG));' /workdir/tongsuo/crypto/bn/rsaz_exp_x2.c
 
 WORKDIR /workdir/tengine
 RUN  ./configure \
