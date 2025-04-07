@@ -175,6 +175,7 @@ RUN addgroup -g 101 -S nginx \
     && apk upgrade --no-cache \
     && apk add --no-cache \
         pcre \
+        pcre2 \
         geoip \
         luajit \
         jemalloc \
@@ -185,13 +186,13 @@ RUN addgroup -g 101 -S nginx \
     # link modsecurity libraries
     && ln -sf /usr/local/modsecurity/lib/libmodsecurity.so.3 /lib/libmodsecurity.so.3 \
     # set modsecurity
-    && echo "modsecurity on;" > /etc/nginx/conf.d/modsecurity.conf \
-    && echo "modsecurity_rules_file /etc/nginx/modsecurity/modsecurity.conf;" >> /etc/nginx/conf.d/modsecurity.conf \
+    && echo -e "modsecurity on;" > /etc/nginx/conf.d/modsecurity.conf \
+    && echo -e "modsecurity_rules_file /etc/nginx/modsecurity/modsecurity.conf;" >> /etc/nginx/conf.d/modsecurity.conf \
     && sed -i 's|SecAuditLogType Serial|SecAuditLogType Concurrent|g' /etc/nginx/modsecurity/modsecurity.conf \
-    && echo "\n\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
-    && echo "SecAuditLogStorageDir /var/log/audit/\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
-    && echo "Include /etc/nginx/modsecurity/owasp-crs/crs-setup.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
-    && echo "Include /etc/nginx/modsecurity/owasp-crs/rules/*.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo -e "\n\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo -e "SecAuditLogStorageDir /var/log/audit/\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo -e "Include /etc/nginx/modsecurity/owasp-crs/crs-setup.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo -e "Include /etc/nginx/modsecurity/owasp-crs/rules/*.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
     # create cache directories
     && install -d -m 755 /var/cache/nginx \
     # create modules folder

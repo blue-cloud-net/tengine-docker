@@ -185,16 +185,16 @@ RUN groupadd --system nginx \
     && ln -sf /usr/local/lib/lua/ngx /usr/local/share/lua/5.1 \
     && ln -sf /usr/local/lib/lua/resty /usr/local/share/lua/5.1 \
     # add modsecurity libraries
-    && echo "/usr/local/modsecurity/lib" > /etc/ld.so.conf.d/modsecurity.conf \
+    && echo -e "/usr/local/modsecurity/lib" > /etc/ld.so.conf.d/modsecurity.conf \
     && ldconfig \
     # set modsecurity
-    && echo "modsecurity on;" > /etc/nginx/conf.d/modsecurity.conf \
-    && echo "modsecurity_rules_file /etc/nginx/modsecurity/modsecurity.conf;" >> /etc/nginx/conf.d/modsecurity.conf \
+    && echo -e "modsecurity on;" > /etc/nginx/conf.d/modsecurity.conf \
+    && echo -e "modsecurity_rules_file /etc/nginx/modsecurity/modsecurity.conf;" >> /etc/nginx/conf.d/modsecurity.conf \
     && sed -i 's|SecAuditLogType Serial|SecAuditLogType Concurrent|g' /etc/nginx/modsecurity/modsecurity.conf \
-    && echo "\n\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
-    && echo "SecAuditLogStorageDir /var/log/audit/\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
-    && echo "Include /etc/nginx/modsecurity/owasp-crs/crs-setup.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
-    && echo "Include /etc/nginx/modsecurity/owasp-crs/rules/*.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo -e "\n\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo -e "SecAuditLogStorageDir /var/log/audit/\n\n" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo -e "Include /etc/nginx/modsecurity/owasp-crs/crs-setup.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
+    && echo -e "Include /etc/nginx/modsecurity/owasp-crs/rules/*.conf" >> /etc/nginx/modsecurity/modsecurity.conf \
     # create cache directories
     && install -d -m 755 /var/cache/nginx \
     # create modules folder

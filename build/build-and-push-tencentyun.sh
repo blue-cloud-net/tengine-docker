@@ -1,0 +1,30 @@
+#!/bin/bash
+set -eux;
+
+# Define the private repository
+repository="ccr.ccs.tencentyun.com/huansky/tengine";
+
+# Find all Dockerfiles in the mainline directory
+dockerfiles=$(find mainline -type f -name "Dockerfile*");
+
+# Loop through each Dockerfile, build and push the image
+for dockerfile in $dockerfiles; do
+    # Extract the version from the Dockerfile's directory name
+    version=$(basename "$(dirname "$dockerfile")");
+    
+    echo "Building and pushing tengine:$version...";
+    
+    # Cross compile the Dockerfile for multiple environments
+    platforms=("linux/amd64" "linux/arm/v7" "linux/arm64/v8");
+    echo "Building tengine:$version";
+    platforms_csv=$(IFS=,; echo "${platforms[*]}");
+    # Build the Docker image for the specified platforms
+    # Use --platform to specify the target platforms
+    # Use --push to push the image directly to the repository
+    docker buildx build --platform "$platforms_csv" -f "$dockerfile" -t "$repository:$version" --push .;
+    
+    echo "Successfully pushed tengine:$version to $repository";
+done
+
+# Clean up dangling images
+docker rmi $(docker images -f "dangling=true" -q) || true;
