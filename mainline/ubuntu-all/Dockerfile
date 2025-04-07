@@ -65,6 +65,7 @@ RUN make install
 WORKDIR /workdir/modsecurity
 RUN ./build.sh \
     && ./configure \
+        --prefix=/usr/local/lib/modsecurity \
         --disable-doxygen-doc \
         --disable-doxygen-html \
         --disable-examples \
@@ -158,7 +159,7 @@ RUN  ./configure \
 FROM ubuntu:24.04 AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
 COPY --from=build /usr/local/lib/lua/ /usr/local/lib/lua/
-COPY --from=build /usr/local/modsecurity/ /usr/local/modsecurity/
+COPY --from=build /usr/local/lib/modsecurity/lib/ /usr/local/lib/modsecurity/
 COPY conf/ /etc/nginx/
 COPY --from=build /workdir/modsecurity/unicode.mapping /etc/nginx/modsecurity/unicode.mapping
 COPY --from=build /workdir/modsecurity/modsecurity.conf-recommended /etc/nginx/modsecurity/modsecurity.conf

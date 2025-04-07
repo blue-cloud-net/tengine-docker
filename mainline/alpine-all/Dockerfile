@@ -66,6 +66,7 @@ RUN make install
 WORKDIR /workdir/modsecurity
 RUN ./build.sh \
     && ./configure \
+        --prefix=/usr/local/lib/modsecurity \
         --disable-doxygen-doc \
         --disable-doxygen-html \
         --disable-examples \
@@ -158,7 +159,7 @@ RUN  ./configure \
 FROM alpine:3.21 AS runtime
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
 COPY --from=build /usr/local/lib/lua/ /usr/local/lib/lua/
-COPY --from=build /usr/local/modsecurity/ /usr/local/modsecurity/
+COPY --from=build /usr/local/lib/modsecurity/lib /usr/local/lib/modsecurity/
 COPY conf/ /etc/nginx/
 COPY --from=build /workdir/modsecurity/unicode.mapping /etc/nginx/modsecurity/unicode.mapping
 COPY --from=build /workdir/modsecurity/modsecurity.conf-recommended /etc/nginx/modsecurity/modsecurity.conf
@@ -184,7 +185,7 @@ RUN addgroup -g 101 -S nginx \
     && ln -sf /usr/local/lib/lua/ngx /usr/local/share/lua/5.1 \
     && ln -sf /usr/local/lib/lua/resty /usr/local/share/lua/5.1 \
     # link modsecurity libraries
-    && ln -sf /usr/local/modsecurity/lib/libmodsecurity.so.3 /lib/libmodsecurity.so.3 \
+    && ln -sf /usr/local/lib/modsecurity/libmodsecurity.so.3 /lib/libmodsecurity.so.3 \
     # set modsecurity
     && echo -e "modsecurity on;" > /etc/nginx/conf.d/modsecurity.conf \
     && echo -e "modsecurity_rules_file /etc/nginx/modsecurity/modsecurity.conf;" >> /etc/nginx/conf.d/modsecurity.conf \
