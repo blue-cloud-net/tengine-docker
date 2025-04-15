@@ -73,7 +73,10 @@ RUN ./build.sh \
         --with-geoip \
         --with-pcre2 \
     && make -j2 \
-    && make install
+    && make install \
+    && rm -f /usr/local/lib/modsecurity/lib/libmodsecurity.a \
+    && rm -f /usr/local/lib/modsecurity/lib/libmodsecurity.la \
+    && rm -rf /usr/local/lib/modsecurity/lib/pkgconfig
 
 # 设置编译环境变量
 ENV LUAJIT_LIB=/usr/local/lib

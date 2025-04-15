@@ -15,16 +15,22 @@ for dockerfile in $dockerfiles; do
     echo "Building and pushing tengine:$version...";
     
     # Cross compile the Dockerfile for multiple environments
-    platforms=("linux/amd64" "linux/arm/v7" "linux/arm64/v8");
-    echo "Building tengine:$version";
-    platforms_csv=$(IFS=,; echo "${platforms[*]}");
+    # platforms=("linux/amd64" "linux/arm/v7" "linux/arm64/v8");
+    # platforms=("linux/amd64" "linux/arm64");
+    # platforms=("linux/amd64");
+    # echo "Building tengine:$version";
+    # platforms_csv=$(IFS=,; echo "${platforms[*]}");
+
     # Build the Docker image for the specified platforms
     # Use --platform to specify the target platforms
     # Use --push to push the image directly to the repository
-    docker buildx build --platform "$platforms_csv" -f "$dockerfile" -t "$repository:$version" --push .;
+    # docker buildx build --platform "$platforms_csv" -f "$dockerfile" -t "$repository:$version" --push .;
+
+    # Build the Docker image for the default platform
+    docker build -f "$dockerfile" -t "$repository:$version" .;
     
+    # Push the Docker image to the private repository
+    docker push "$repository:$version";
+
     echo "Successfully pushed tengine:$version to $repository";
 done
-
-# Clean up dangling images
-docker rmi $(docker images -f "dangling=true" -q) || true;
