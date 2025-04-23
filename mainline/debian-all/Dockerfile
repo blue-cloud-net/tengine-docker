@@ -8,6 +8,7 @@ RUN apt update \
 
 ENV TENGINE_VERSION=3.1.0
 ENV TONGSUO_VERSION=8.4.0
+ENV VTS_VERSION=0.2.4
 ENV LUAJIT_VERSION=2.1-20250117
 ENV LUA_RESTY_CORE_VERSION=0.1.27
 ENV LUA_RESTY_LRUCACHE_VERSION=0.15
@@ -19,7 +20,8 @@ ENV MBED_TLS_VERSION=3.6.3
 
 WORKDIR /workdir
 RUN curl -Ljf https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VERSION}.tar.gz -o tengine.tar.gz \
-    && curl -Ljf https://github.com/Tongsuo-Project/Tongsuo/archive/refs/tags/${TONGSUO_VERSION}.tar.gz -o tongsuo.tar.gz  \
+    && curl -Ljf https://github.com/Tongsuo-Project/Tongsuo/archive/refs/tags/${TONGSUO_VERSION}.tar.gz -o tongsuo.tar.gz \
+    && curl -Ljf https://github.com/vozlt/nginx-module-vts/archive/refs/tags/v${VTS_VERSION}.tar.gz -o vts.tar.gz \
     && curl -Ljf https://github.com/openresty/luajit2/archive/refs/tags/v${LUAJIT_VERSION}.tar.gz -o luajit2.tar.gz  \
     && curl -Ljf https://github.com/openresty/lua-resty-core/archive/refs/tags/v${LUA_RESTY_CORE_VERSION}.tar.gz -o lua-resty-core.tar.gz  \
     && curl -Ljf https://github.com/openresty/lua-resty-lrucache/archive/refs/tags/v${LUA_RESTY_LRUCACHE_VERSION}.tar.gz -o lua-resty-lrucache.tar.gz \
@@ -30,6 +32,7 @@ RUN curl -Ljf https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VER
     && curl -Ljf https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/mbedtls-${MBED_TLS_VERSION}.tar.gz -o mbedtls.tar.gz \
     && tar -zxvf tengine.tar.gz \
     && tar -zxvf tongsuo.tar.gz \
+    && tar -zxvf vts.tar.gz \
     && tar -zxvf luajit2.tar.gz \
     && tar -zxvf lua-resty-core.tar.gz \
     && tar -zxvf lua-resty-lrucache.tar.gz \
@@ -42,6 +45,7 @@ RUN curl -Ljf https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VER
 # 移除文件夹版本号
 RUN mv tengine-${TENGINE_VERSION} tengine \
     && mv Tongsuo-${TONGSUO_VERSION} tongsuo \
+    && mv nginx-module-vts-${VTS_VERSION} vts \
     && mv luajit2-${LUAJIT_VERSION} luajit2 \
     && mv lua-resty-core-${LUA_RESTY_CORE_VERSION} lua-resty-core \
     && mv lua-resty-lrucache-${LUA_RESTY_LRUCACHE_VERSION} lua-resty-lrucache \
@@ -124,6 +128,8 @@ RUN  ./configure \
         --with-ipv6 \
         --with-mail \
         --with-mail_ssl_module \
+        --with-stream \
+        --with-stream_geoip_module \
         --with-stream_realip_module \
         --with-stream_sni \
         --with-stream_ssl_module \
@@ -155,6 +161,8 @@ RUN  ./configure \
         --add-module=./modules/ngx_tongsuo_ntls \
         --with-openssl=../tongsuo \
         --with-openssl-opt="--strict-warnings enable-ntls" \
+        # 添加VTS模块
+        --add-module=../vts \
     && make -j2 \
     && make install
 
