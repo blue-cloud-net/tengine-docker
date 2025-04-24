@@ -2,7 +2,7 @@ FROM debian:12 AS build
 
 RUN apt update \
     && apt upgrade -y \
-    && apt install -y curl g++ make libpcre3-dev libssl-dev zlib1g-dev \
+    && apt install -y curl g++ make cmake libpcre3-dev libssl-dev zlib1g-dev \
                             libgeoip-dev libjemalloc-dev \
                             autoconf automake libtool libpcre2-dev
 
@@ -17,6 +17,7 @@ ENV MODSECURITY_NGINX_VERSION=1.0.3
 ENV CORERULESET_VERSION=4.12.0
 ENV LIBINJECTION_VERSION=3.10.0
 ENV MBED_TLS_VERSION=3.6.3
+ENV BROTLI_VERSION=1.1.0
 
 WORKDIR /workdir
 RUN curl -Ljf https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VERSION}.tar.gz -o tengine.tar.gz \
@@ -30,6 +31,8 @@ RUN curl -Ljf https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VER
     && curl -Ljf https://github.com/coreruleset/coreruleset/releases/download/v${CORERULESET_VERSION}/coreruleset-${CORERULESET_VERSION}-minimal.tar.gz -o coreruleset.tar.gz \
     && curl -Ljf https://github.com/libinjection/libinjection/archive/refs/tags/v${LIBINJECTION_VERSION}.tar.gz -o libinjection.tar.gz \
     && curl -Ljf https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/mbedtls-${MBED_TLS_VERSION}.tar.gz -o mbedtls.tar.gz \
+    && curl -Ljf https://github.com/google/ngx_brotli/archive/refs/heads/master.tar.gz -o brotli-nginx.tar.gz \
+    && curl -Ljf https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz -o brotli.tar.gz \
     && tar -zxvf tengine.tar.gz \
     && tar -zxvf tongsuo.tar.gz \
     && tar -zxvf vts.tar.gz \
@@ -40,7 +43,9 @@ RUN curl -Ljf https://github.com/alibaba/tengine/archive/refs/tags/${TENGINE_VER
     && tar -zxvf modsecurity-nginx.tar.gz \
     && tar -zxvf coreruleset.tar.gz \
     && tar -zxvf libinjection.tar.gz -C ModSecurity-${MODSECURITY_VERSION}/others/ \
-    && tar -zxvf mbedtls.tar.gz -C ModSecurity-${MODSECURITY_VERSION}/others/
+    && tar -zxvf mbedtls.tar.gz -C ModSecurity-${MODSECURITY_VERSION}/others/ \
+    && tar -zxvf brotli-nginx.tar.gz && mv ngx_brotli-master brotli-nginx \
+    && tar -zxvf brotli.tar.gz -C brotli-nginx/deps/
 
 # 移除文件夹版本号
 RUN mv tengine-${TENGINE_VERSION} tengine \
@@ -54,7 +59,9 @@ RUN mv tengine-${TENGINE_VERSION} tengine \
     && mv coreruleset-${CORERULESET_VERSION} coreruleset \
     && rm -rf modsecurity/others/libinjection modsecurity/others/mbedtls \
     && mv modsecurity/others/libinjection-${LIBINJECTION_VERSION} modsecurity/others/libinjection \
-    && mv modsecurity/others/mbedtls-mbedtls-${MBED_TLS_VERSION} modsecurity/others/mbedtls
+    && mv modsecurity/others/mbedtls-mbedtls-${MBED_TLS_VERSION} modsecurity/others/mbedtls \
+    && rm -rf brotli-nginx/deps/brotli \
+    && mv brotli-nginx/deps/brotli-${BROTLI_VERSION} brotli-nginx/deps/brotli
 
 # 编译lua模块
 WORKDIR /workdir/luajit2
@@ -86,6 +93,16 @@ ENV LUAJIT_LIB=/usr/local/lib
 ENV LUAJIT_INC=/usr/local/include/luajit-2.1
 ENV MODSECURITY_INC=/workdir/modsecurity/headers/
 ENV MODSECURITY_LIB=/workdir/modsecurity/src/.libs/
+
+# 编译brotli
+WORKDIR /workdir/brotli-nginx/deps/brotli
+RUN mkdir -p out \
+    && cd out \
+    && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+        -DCMAKE_C_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
+        -DCMAKE_CXX_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" \
+        -DCMAKE_INSTALL_PREFIX=./installed .. \
+    && cmake --build . --config Release --target brotlienc
 
 # fix tongsuo build warning (https://github.com/Tongsuo-Project/Tongsuo/commit/3b84722dcd68e4f008534a15cb1c9e38835237cf)
 RUN sed -i '/while (out_len > 0)/,/\}/c\    memset(out, 0, out_len * sizeof(BN_ULONG));' /workdir/tongsuo/crypto/bn/rsaz_exp_x2.c
@@ -163,10 +180,13 @@ RUN  ./configure \
         --with-openssl-opt="--strict-warnings enable-ntls" \
         # 添加VTS模块
         --add-module=../vts \
+        # 添加brotli模块
+        --add-module=../brotli-nginx \
     && make -j2 \
     && make install
 
 FROM debian:12 AS runtime
+
 COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
 COPY --from=build /usr/local/lib/lua/ /usr/local/lib/lua/
 COPY --from=build /usr/local/lib/modsecurity/lib/ /usr/local/lib/modsecurity/
