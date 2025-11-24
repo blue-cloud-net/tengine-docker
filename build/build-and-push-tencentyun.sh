@@ -26,9 +26,6 @@ for dockerfile in $dockerfiles; do
     # Use --push to push the image directly to the repository
     docker buildx build --platform "$platforms_csv" -f "$dockerfile" -t "$repository:$version" --push .;
 
-    # Build the Docker image for the default platform
-    # docker build -f "$dockerfile" -t "$repository:$version" --build-arg ALL_PROXY="http://192.168.199.199:7890" .;
-    
     # Push the Docker image to the private repository
     docker push "$repository:$version";
 
