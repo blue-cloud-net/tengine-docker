@@ -18,8 +18,10 @@ for dockerfile in $dockerfiles; do
     # platforms=("linux/amd64" "linux/arm/v7" "linux/arm64/v8");
     # platforms=("linux/amd64" "linux/arm64");
     platforms=("linux/amd64");
-    # echo "Building tengine:$version";
+    
+    # Convert platforms array to comma-separated string
     platforms_csv=$(IFS=,; echo "${platforms[*]}");
+    echo "Building for platforms: $platforms_csv";
 
     # Build the Docker image for the specified platforms
     # Use --platform to specify the target platforms
